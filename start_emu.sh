@@ -9,7 +9,8 @@ NC='\033[0m' # No Color
 function wait_emulator_to_be_ready() {
   emulator_name=${EMULATOR_NAME}
 #  emulator -avd "${emulator_name}" -no-boot-anim -gpu off
-  emulator -avd "${emulator_name}" -no-boot-anim -gpu off -no-accel
+#  emulator -avd "${emulator_name}" -no-boot-anim -gpu off -no-accel -grpc 5037
+  emulator -avd "${emulator_name}" -no-boot-anim -gpu off -no-accel -grpc 5037 -grpc-use-jwt
   printf "${G}==>  ${BL}Emulator has ${YE}${EMULATOR_NAME} ${BL}started in headed mode! ${G}<==${NC}""\n"
 }
 

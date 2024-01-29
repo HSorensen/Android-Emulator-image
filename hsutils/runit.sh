@@ -8,7 +8,7 @@ if [ $retVal -ne 0 ]; then
 fi
 
 
-docker run --rm -it -d -p 5900:5900 --name androidContainer -e VNC_PASSWORD=password --privileged android-emulator
+docker run --rm -it -d -p 5900:5900 --name androidContainer -v android:/root/android --device=/dev/kvm -e VNC_PASSWORD=password --privileged android-emulator
 retVal=$?
 if [ $retVal -ne 0 ]; then
     echo "Error running image: $retVal"
@@ -20,7 +20,7 @@ CONTAINERID=`docker container ls --all | grep androidContainer | cut -d" " -f1`
 
 echo "Started container $CONTAINERID"
 
-docker exec --privileged -it androidContainer bash -c "./start_vnc.sh"
+docker exec --privileged -it androidContainer bash -c "./start_vnc_hs.sh"
 
 echo "Stopping container $CONTAINERID ... "
 

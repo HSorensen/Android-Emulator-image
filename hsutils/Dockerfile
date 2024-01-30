@@ -25,7 +25,7 @@ RUN . /root/.bashrc && nvm install node
 #=========================
 # from https://dev.to/testwithblake/a-step-by-step-guide-to-test-automation-with-appium-2nmf
 # See https://github.com/appium/appium-uiautomator2-driver
-RUN apt-get install -y ffmpeg libfuse2
+RUN apt-get install -y ffmpeg libfuse2 firefox
 RUN . /root/.bashrc && npm install -g appium -g appium-doctor -g mjpeg-consumer && \
      appium driver install uiautomator2 
 
@@ -82,10 +82,17 @@ RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_
 #             && cd $ANDROID_SDK_ROOT/cmdline-tools && mv NOTICE.txt source.properties bin lib tools/ \
 #             && cd $ANDROID_SDK_ROOT/cmdline-tools/tools && ls
 #==============================
-# Set JAVA_HOME - SDK
+# Prepare Path for Andriod SDK
 #==============================
 ENV PATH "$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS}"
-ENV DOCKER="true"
+
+#===============================
+# Install Intellij Communication
+#===============================
+# From https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz
+# Install into /opt
+RUN wget --progress=dot:giga https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz -O /root/ideaIC-aarch64.tar.gz \
+  && tar -xzf /root/ideaIC-*.tar.gz -C /opt
 
 #=========================
 # Copying Scripts to root

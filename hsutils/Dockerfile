@@ -25,7 +25,7 @@ RUN . /root/.bashrc && nvm install node
 #=========================
 # from https://dev.to/testwithblake/a-step-by-step-guide-to-test-automation-with-appium-2nmf
 # See https://github.com/appium/appium-uiautomator2-driver
-RUN apt-get install -y ffmpeg
+RUN apt-get install -y ffmpeg libfuse2
 RUN . /root/.bashrc && npm install -g appium -g appium-doctor -g mjpeg-consumer && \
      appium driver install uiautomator2 
 
@@ -35,6 +35,11 @@ RUN apt-get install -y gstreamer1.0*
 # Install bundle tool jar into /usr/local/bin, and mark executable
 RUN wget https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O bundletool.jar --progress=dot:giga \
   && mv bundletool.jar /usr/local/bin && chmod ugo+x /usr/local/bin/bundletool.jar
+
+# Install appium inspector
+# from https://github.com/appium/appium-inspector
+RUN wget https://github.com/appium/appium-inspector/releases/download/v2023.12.2/Appium-Inspector-linux-2023.12.2.AppImage -O /root/Appium-Inspector-linux.AppImage --progress=dot:giga \
+  && chmod a+x /root/Appium-Inspector-linux.AppImage
 
 #========================
 # SDKMAN

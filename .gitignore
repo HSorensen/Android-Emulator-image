@@ -3,3 +3,6 @@ test-compose.yml
 coverage
 useful
 nohup.out
+hsutils/android/**
+hsutils/xdotool-master/**
+

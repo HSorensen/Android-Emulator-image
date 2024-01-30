@@ -9,11 +9,36 @@ NC='\033[0m' # No Color
 
 main() {
     printf "${G}==> ${BL}Welcome to android-emulator VNC based on amrsa ${G}<==${NC}""\n"
+    launch_android_sdk
     launch_dbus
     launch_xvfb
 #    launch_xephyr
     launch_window_manager
     run_vnc_server
+}
+
+launch_android_sdk() {
+    # check android commandline tools are in the right place
+    if [ -z $ANDROID_SDK_ROOT ]; then
+    echo "${G_LOG_W} Check setup. Missing ANDROID_SDK_ROOT."
+    return
+    fi
+
+    if [ ! -f $ANDROID_SDK_ROOT/cmdline-tools ]; then
+    pushd /root
+    echo "${G_LOG_I} Activating Android tools. ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+    mkdir -p $ANDROID_SDK_ROOT/cmdline-tools 
+    cd /root/cmdline-tools && mv NOTICE.txt source.properties bin lib $ANDROID_SDK_ROOT/cmdline-tools/
+    # To statisfy appium driver doctor uiautomator2
+    ln -s /root/cmdline-tools/bin/apkanalyzer $ANDROID_SDK_ROOT/platform-tools/apkanalyzer
+    popd
+    fi 
+    if [ ! -f $ANDROID_SDK_ROOT/platform-tools/apkanalyzer ]; then
+    echo "${G_LOG_I} Activating Android tools apkanalyzer."
+    ln -s /root/cmdline-tools/bin/apkanalyzer $ANDROID_SDK_ROOT/platform-tools/apkanalyzer
+    fi 
+
+
 }
 
 launch_dbus() {

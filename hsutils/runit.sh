@@ -8,7 +8,7 @@ if [ $retVal -ne 0 ]; then
 fi
 
 
-docker run --rm -it -d -p 5900:5900 --name androidContainer -v android:/root/android --device=/dev/kvm -e VNC_PASSWORD=password --privileged android-emulator
+docker run --rm -it -d -p 5900:5900 --name androidContainer --hostname avd_docker --volume $PWD/android:/root/Android --device=/dev/kvm -e VNC_PASSWORD=password --privileged android-emulator
 retVal=$?
 if [ $retVal -ne 0 ]; then
     echo "Error running image: $retVal"

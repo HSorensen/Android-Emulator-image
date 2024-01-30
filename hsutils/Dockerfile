@@ -3,7 +3,7 @@ FROM linuxmintd/mint21-amd64
 #============================
 # xdotool 
 #============================
-RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xvfb x11vnc wmctrl xterm 
+RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xvfb x11vnc wmctrl xterm bash
 #RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xserver-xephyr x11vnc wmctrl xterm 
 RUN apt-get install -y ruby 
 RUN apt-get install -y dbus-x11 awesome
@@ -17,25 +17,36 @@ RUN cd xdotool-src && unzip xdotool-master && cd xdotool-master && make && make 
 #
 # https://www.linode.com/docs/guides/how-to-install-use-node-version-manager-nvm/
 #=========================
-RUN cd /root && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash && . /root/.bashrc && nvm install node
+RUN cd /root && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash 
+RUN . /root/.bashrc && nvm install node
 
 #=========================
 # Appium
 #=========================
 # from https://dev.to/testwithblake/a-step-by-step-guide-to-test-automation-with-appium-2nmf
 # See https://github.com/appium/appium-uiautomator2-driver
-RUN . /root/.bashrc && npm install -g appium -g appium-doctor && \
-     appium driver install uiautomator2
+RUN apt-get install -y ffmpeg
+RUN . /root/.bashrc && npm install -g appium -g appium-doctor -g mjpeg-consumer && \
+     appium driver install uiautomator2 
 
+# Install gstreamer1.0
+RUN apt-get install -y gstreamer1.0*
+
+# Install bundle tool jar into /usr/local/bin, and mark executable
+RUN wget https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O bundletool.jar --progress=dot:giga \
+  && mv bundletool.jar /usr/local/bin && chmod ugo+x /usr/local/bin/bundletool.jar
 
 #========================
 # SDKMAN
 # https://sdkman.io/install
 #========================
+SHELL ["/bin/bash","-c"] 
 RUN curl -s "https://get.sdkman.io" | bash
 
 # Install dependencies
-RUN apt-get install -y openjdk-17-jdk 
+# Install JDK
+RUN source "/root/.sdkman/bin/sdkman-init.sh" && sdk install java
+ENV JAVA_HOME=/root/.sdkman/candidates/java/current
 
 #=========================
 # Android Studio
@@ -47,14 +58,35 @@ RUN wget https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2023.1.1.28/
 RUN cd /usr/local && tar xzvf /android-studio.tar.gz
 RUN rm android-studio.tar.gz
 
-ENV ANDROID_HOME=/usr/local/android-studio
+# ENV ANDROID_HOME=/usr/local/android-studio
+ENV ANDROID_HOME=/root/Android/Sdk
+ENV ANDROID_SDK_ROOT=/root/Android/Sdk
+
+#=========================
+# Android Tools
+#=========================
+# The Android Studio is installed when the container is running. 
+# Prepare the commandline tools to me installed when the container is running.
+ARG ANDROID_CMD="commandlinetools-linux-10406996_latest.zip"
+RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_CMD} -O /root/cmdline-tools.zip \
+             && cd /root && unzip cmdline-tools.zip
+#ARG ANDROID_CMD="commandlinetools-linux-10406996_latest.zip"
+#RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_CMD} -O /root/cmdline-tools.zip \
+#             && mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/tools \
+#             && unzip -d $ANDROID_SDK_ROOT /cmdline-tools.zip \
+#             && cd $ANDROID_SDK_ROOT/cmdline-tools && mv NOTICE.txt source.properties bin lib tools/ \
+#             && cd $ANDROID_SDK_ROOT/cmdline-tools/tools && ls
+#==============================
+# Set JAVA_HOME - SDK
+#==============================
+ENV PATH "$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS}"
+ENV DOCKER="true"
+
 #=========================
 # Copying Scripts to root
 #=========================
 COPY start_vnc_hs.sh /
 RUN chmod a+x start_vnc_hs.sh
-
-
 
 #=======================
 # framework entry point

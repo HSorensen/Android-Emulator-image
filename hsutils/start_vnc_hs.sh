@@ -24,16 +24,16 @@ launch_android_sdk() {
     return
     fi
 
-    if [ ! -f $ANDROID_SDK_ROOT/cmdline-tools ]; then
-    pushd /root
+    if [ ! -f $ANDROID_SDK_ROOT/cmdline-tools/NOTICE.txt ]; then
+    pushd /root > /dev/null
     echo "${G_LOG_I} Activating Android tools. ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
     mkdir -p $ANDROID_SDK_ROOT/cmdline-tools 
     cd /root/cmdline-tools && mv NOTICE.txt source.properties bin lib $ANDROID_SDK_ROOT/cmdline-tools/
-    # To statisfy appium driver doctor uiautomator2
-    ln -s /root/cmdline-tools/bin/apkanalyzer $ANDROID_SDK_ROOT/platform-tools/apkanalyzer
-    popd
+    popd > /dev/null
     fi 
+
     if [ ! -f $ANDROID_SDK_ROOT/platform-tools/apkanalyzer ]; then
+    # To statisfy appium driver doctor uiautomator2
     echo "${G_LOG_I} Activating Android tools apkanalyzer."
     ln -s /root/cmdline-tools/bin/apkanalyzer $ANDROID_SDK_ROOT/platform-tools/apkanalyzer
     fi 

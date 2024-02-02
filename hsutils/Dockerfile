@@ -6,7 +6,7 @@ FROM linuxmintd/mint21-amd64
 RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xvfb x11vnc wmctrl xterm bash
 #RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xserver-xephyr x11vnc wmctrl xterm 
 RUN apt-get install -y ruby 
-RUN apt-get install -y dbus-x11 awesome
+RUN apt-get install -y dbus-x11 cinnamon
 
 ADD xdotool-master.zip xdotool-src/
 RUN cd xdotool-src && unzip xdotool-master && cd xdotool-master && make && make install
@@ -50,7 +50,7 @@ RUN curl -s "https://get.sdkman.io" | bash
 
 # Install dependencies
 # Install JDK
-RUN source "/root/.sdkman/bin/sdkman-init.sh" && sdk install java
+RUN source "/root/.sdkman/bin/sdkman-init.sh" && sdk install java 17.0.10-tem
 ENV JAVA_HOME=/root/.sdkman/candidates/java/current
 
 #=========================
@@ -74,7 +74,8 @@ ENV ANDROID_SDK_ROOT=/root/Android/Sdk
 # Prepare the commandline tools to me installed when the container is running.
 ARG ANDROID_CMD="commandlinetools-linux-10406996_latest.zip"
 RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_CMD} -O /root/cmdline-tools.zip \
-             && cd /root && unzip cmdline-tools.zip
+             && cd /root && unzip cmdline-tools.zip \
+             && rm /root/cmdline-tools.zip
 #ARG ANDROID_CMD="commandlinetools-linux-10406996_latest.zip"
 #RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_CMD} -O /root/cmdline-tools.zip \
 #             && mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/tools \
@@ -92,7 +93,8 @@ ENV PATH "$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/emulator:$
 # From https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz
 # Install into /opt
 RUN wget --progress=dot:giga https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz -O /root/ideaIC-aarch64.tar.gz \
-  && tar -xzf /root/ideaIC-*.tar.gz -C /opt
+  && tar -xzf /root/ideaIC-*.tar.gz -C /opt \
+  && rm /root/ideaIC-*.tar.gz
 
 #=========================
 # Copying Scripts to root
@@ -104,3 +106,7 @@ RUN chmod a+x start_vnc_hs.sh
 # framework entry point
 #=======================
 CMD [ "/bin/bash" ]
+
+#https://anivaz.medium.com/how-to-set-up-appium-with-android-studio-for-mobile-app-testing-a300b7910364
+#https://medium.com/propertyfinder-engineering/mobile-app-automation-setup-appium-android-studio-20668c254899
+#https://appium.io/docs/en/2.4/guides/caps/#

@@ -1,4 +1,5 @@
-FROM openjdk:18-jdk-slim
+#FROM openjdk:18-jdk-slim
+FROM ubuntu:18.04
 
 LABEL maintainer "Amr Salem"
 
@@ -10,17 +11,32 @@ WORKDIR /
 #=============================
 SHELL ["/bin/bash", "-c"]   
 
-RUN apt update && apt install -y curl sudo wget unzip bzip2 libdrm-dev libxkbcommon-dev libgbm-dev libasound-dev libnss3 libxcursor1 libpulse-dev libxshmfence-dev xauth xvfb x11vnc fluxbox wmctrl libdbus-glib-1-2
+#RUN apt update && apt install -y curl sudo wget unzip bzip2 libdrm-dev libxkbcommon-dev libgbm-dev libasound-dev && \
+#libnss3 libxcursor1 libpulse-dev libxshmfence-dev xauth xvfb x11vnc fluxbox wmctrl libdbus-glib-1-2
+
+#RUN dpkg --add-architecture i386
+#        libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386 \
+RUN apt-get update && apt-get install -y \
+        build-essential git neovim wget unzip sudo \
+        libc6 libncurses5 libstdc++6 \
+        libnss3 libxcursor1 libpulse-dev libxshmfence-dev xauth xvfb x11vnc fluxbox wmctrl libdbus-glib-1-2 \
+        libxrender1 libxtst6 libxi6 libfreetype6 libxft2 xz-utils vim\
+        qemu qemu-kvm libvirt-bin ubuntu-vm-builder bridge-utils libnotify4 libglu1 libqt5widgets5 openjdk-17-jdk \
+        curl sudo wget unzip bzip2 libdrm-dev libxkbcommon-dev libgbm-dev libasound-dev \
+        firefox cpu-checker \
+        xdotool xinput
+#         && \
+#    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 #==============================
 # Android SDK ARGS
 #==============================
 ARG ARCH="x86_64" 
 ARG TARGET="google_apis_playstore"  
-#ARG API_LEVEL="33" 
-#ARG BUILD_TOOLS="33.0.2"
-ARG API_LEVEL="34" 
-ARG BUILD_TOOLS="34.0.0"
+ARG API_LEVEL="33" 
+ARG BUILD_TOOLS="33.0.2"
+#ARG API_LEVEL="34" 
+#ARG BUILD_TOOLS="34.0.0"
 ARG ANDROID_ARCH=${ANDROID_ARCH_DEFAULT}
 ARG ANDROID_API_LEVEL="android-${API_LEVEL}"
 ARG ANDROID_APIS="${TARGET};${ARCH}"
@@ -41,7 +57,7 @@ ENV DOCKER="true"
 #============================================
 # Install required Android CMD-line tools
 #============================================
-RUN wget https://dl.google.com/android/repository/${ANDROID_CMD} -P /tmp && \
+RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_CMD} -P /tmp && \
               unzip -d $ANDROID_SDK_ROOT /tmp/$ANDROID_CMD && \
               mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/tools && cd $ANDROID_SDK_ROOT/cmdline-tools &&  mv NOTICE.txt source.properties bin lib tools/  && \
               cd $ANDROID_SDK_ROOT/cmdline-tools/tools && ls
@@ -66,17 +82,18 @@ RUN echo "no" | avdmanager --verbose create avd --force --name "${EMULATOR_NAME}
 #====================================
 # Install latest nodejs, npm & appium
 #====================================
-RUN curl -sL https://deb.nodesource.com/setup_18.x | bash && \
-    apt-get -qqy install nodejs && \
-    npm install -g npm && \
-    npm i -g appium@next --unsafe-perm=true --allow-root && \
-    appium driver install uiautomator2 && \
-    exit 0 && \
-    npm cache clean && \
-    apt-get remove --purge -y npm && \  
-    apt-get autoremove --purge -y && \
-    apt-get clean && \
-    rm -Rf /tmp/* && rm -Rf /var/lib/apt/lists/*
+#RUN curl -sL https://deb.nodesource.com/setup_18.x | bash && \
+#    apt-get -qqy install nodejs 
+#    && \
+#    npm install -g npm && \
+#    npm i -g appium@next --unsafe-perm=true --allow-root && \
+#    appium driver install uiautomator2 && \
+#    exit 0 && \
+#    npm cache clean && \
+#    apt-get remove --purge -y npm && \  
+#    apt-get autoremove --purge -y && \
+#    apt-get clean && \
+#    rm -Rf /tmp/* && rm -Rf /var/lib/apt/lists/*
 
 
 #===================
@@ -102,6 +119,14 @@ RUN chmod a+x start_vnc.sh && \
     chmod a+x start_emu.sh && \
     chmod a+x start_appium.sh && \
     chmod a+x start_emu_headless.sh
+
+#============================
+# xdotool 
+#============================
+#RUN apt-get install -y xlib libxtst=dev xi xkbcommon libxinerama-dev
+#ADD hsutils/xdotool-master.zip xdotool-src/
+#RUN cd xdotool-src
+
 
 #=======================
 # framework entry point

@@ -18,6 +18,7 @@ main() {
 }
 
 launch_android_sdk() {
+    echo "${G_LOG_I} Launching android sdk."
     # check android commandline tools are in the right place
     if [ -z $ANDROID_SDK_ROOT ]; then
     echo "${G_LOG_W} Check setup. Missing ANDROID_SDK_ROOT."
@@ -42,6 +43,7 @@ launch_android_sdk() {
 }
 
 launch_dbus() {
+    echo "${G_LOG_I} Launching dbus."
     # ensure dbus is running for Awsome
     local dbus_status=`/etc/init.d/dbus status | grep "not running"`
     if [  "${dbus_status}" ]; then
@@ -51,14 +53,15 @@ launch_dbus() {
 }
 
 launch_xvfb() {
+    echo "${G_LOG_I} Launching xvfb."
     # Set defaults if the user did not specify envs.
-    export DISPLAY=${XVFB_DISPLAY:-:1}
+    export DISPLAY=${XVFB_DISPLAY:-:0}
     local screen=${XVFB_SCREEN:-0}
     local resolution=${XVFB_RESOLUTION:-1280x1024x24}
     local timeout=${XVFB_TIMEOUT:-5}
 
     # Start and wait for either Xvfb to be fully up or we hit the timeout.
-    Xvfb ${DISPLAY} -screen ${screen} ${resolution} &
+    Xvfb ${DISPLAY} -ac -screen ${screen} ${resolution} &
     local loopCount=0
     until xdpyinfo -display ${DISPLAY} > /dev/null 2>&1
     do
@@ -73,6 +76,7 @@ launch_xvfb() {
 }
 
 launch_xephyr() {
+    echo "${G_LOG_I} Launching xephyr."
     # Set defaults if the user did not specify envs.
     export DISPLAY=${XVFB_DISPLAY:-:1}
     local screen=${XVFB_SCREEN:-0}
@@ -96,14 +100,15 @@ launch_xephyr() {
 }
 
 launch_window_manager() {
+    echo "${G_LOG_I} Launching window manager."
     local timeout=${XVFB_TIMEOUT:-5}
 
     # Start and wait for either fluxbox to be fully up or we hit the timeout.
     # fluxbox &
-    #cinnamon &
+    cinnamon &
     #muffin &
     #openbox &
-    awesome &
+    #awesome &
     local loopCount=0
     until wmctrl -m > /dev/null 2>&1
     do
@@ -111,13 +116,14 @@ launch_window_manager() {
         sleep 1
         if [ ${loopCount} -gt ${timeout} ]
         then
-            echo "${G_LOG_E} fluxbox failed to start."
+            echo "${G_LOG_E} window manager failed to start."
             exit 1
         fi
     done
 }
 
 run_vnc_server() {
+    echo "${G_LOG_I} Launching vnc server."
     local passwordArgument='-nopw'
     local xvncparms='-ncache 10'
 

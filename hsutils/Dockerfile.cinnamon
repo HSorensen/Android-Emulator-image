@@ -1,0 +1,139 @@
+# Based on https://www.youtube.com/watch?v=SawQHZOHQSU
+FROM ubuntu:lunar-20230615
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -y cinnamon locales sudo
+
+# RUN apt update && \
+#     DEBIAN_FRONTEND=noninteractive apt install -y cinnamon-desktop-environment locales sudo
+
+#RUN apt update && \
+#    DEBIAN_FRONTEND=noninteractive apt install -y ubuntucinnamon-desktop locales sudo
+
+
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -y xrdp tigervnc-standalone-server && \
+    adduser xrdp ssl-cert && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
+
+ARG USER=testuser
+ARG PASS=1234
+
+RUN useradd -m $USER -p $(openssl passwd $PASS) && \
+    usermod -aG sudo $USER && \
+    chsh -s /bin/bash $USER
+
+RUN echo "#!/bin/sh\n\
+export XDG_SESSION_DESKTOP=cinnamon\n\
+export XDG_SESSION_TYPE=x11\n\
+export XDG_CURRENT_DESKTOP=X-Cinnamon\n\
+export XDG_CONFIG_DIRS=/etc/xdg/xdg-cinnamon:/etc/xdg" > /env && chmod 555 /env
+
+RUN echo "#!/bin/sh\n\
+. /env\n\
+exec dbus-run-session -- cinnamon-session" > /xstartup && chmod +x /xstartup
+
+RUN mkdir /home/$USER/.vnc && \
+    echo $PASS | vncpasswd -f > /home/$USER/.vnc/passwd && \
+    chmod 0600 /home/$USER/.vnc/passwd && \
+    chown -R $USER:$USER /home/$USER/.vnc
+
+RUN cp -f /xstartup /etc/xrdp/startwm.sh && \
+    cp -f /xstartup /home/$USER/.vnc/xstartup
+
+RUN echo "#!/bin/sh\n\
+sudo -u $USER -g $USER -- vncserver -rfbport 5902 -geometry 1920x1080 -depth 24 -verbose -localhost no -autokill no" > /startvnc && chmod +x /startvnc
+
+EXPOSE 3389
+EXPOSE 5902
+
+CMD service dbus start; /usr/lib/systemd/systemd-logind & service xrdp start; /startvnc; bash
+
+
+#============================
+# xdotool 
+#============================
+RUN apt install -y libxkbcommon-x11-dev libxtst-dev libxinerama-dev build-essential ruby wget
+
+ADD xdotool-master.zip xdotool-src/
+RUN cd xdotool-src && unzip xdotool-master && cd xdotool-master && make && make install
+
+#=========================
+# Node Version Manager 
+#   Nodejs, npm
+#
+# https://www.linode.com/docs/guides/how-to-install-use-node-version-manager-nvm/
+#=========================
+RUN cd /root && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash 
+RUN . /root/.bashrc && nvm install node
+
+#=========================
+# Appium
+#=========================
+# from https://dev.to/testwithblake/a-step-by-step-guide-to-test-automation-with-appium-2nmf
+# See https://github.com/appium/appium-uiautomator2-driver
+RUN apt-get install -y ffmpeg libfuse2 firefox  gstreamer1.0*
+RUN . /root/.bashrc && npm install -g appium -g appium-doctor -g mjpeg-consumer && \
+     appium driver install uiautomator2 
+
+# Install bundle tool jar into /usr/local/bin, and mark executable
+RUN wget https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O bundletool.jar --progress=dot:giga \
+  && mv bundletool.jar /usr/local/bin && chmod ugo+x /usr/local/bin/bundletool.jar
+
+# Install appium inspector
+# from https://github.com/appium/appium-inspector
+RUN wget https://github.com/appium/appium-inspector/releases/download/v2023.12.2/Appium-Inspector-linux-2023.12.2.AppImage -O /root/Appium-Inspector-linux.AppImage --progress=dot:giga \
+  && chmod a+x /root/Appium-Inspector-linux.AppImage
+
+#========================
+# SDKMAN
+# https://sdkman.io/install
+# $ export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
+#========================
+SHELL ["/bin/bash","-c"] 
+RUN curl -s "https://get.sdkman.io" | bash
+
+# Install dependencies
+# Install JDK
+RUN source "/root/.sdkman/bin/sdkman-init.sh" && sdk install java 17.0.10-tem
+ENV JAVA_HOME=/root/.sdkman/candidates/java/current
+
+#=========================
+# Android Studio
+# https://developer.android.com/studio/install
+#=========================
+RUN dpkg --add-architecture i386
+RUN apt-get update && apt-get install -y libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386
+RUN wget https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2023.1.1.28/android-studio-2023.1.1.28-linux.tar.gz --progress=dot:giga  -O android-studio.tar.gz
+RUN cd /usr/local && tar xzvf /android-studio.tar.gz
+RUN rm /android-studio.tar.gz
+
+# ENV ANDROID_HOME=/usr/local/android-studio
+ENV ANDROID_HOME=/opt/Android/Sdk
+ENV ANDROID_SDK_ROOT=/opt/Android/Sdk
+
+#=========================
+# Android Tools
+#=========================
+# The Android Studio is installed when the container is running. 
+# Prepare the commandline tools to me installed when the container is running.
+ARG ANDROID_CMD="commandlinetools-linux-10406996_latest.zip"
+RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_CMD} -O /root/cmdline-tools.zip \
+             && mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/tools \
+             && unzip -d $ANDROID_SDK_ROOT /root/cmdline-tools.zip \
+             && cd $ANDROID_SDK_ROOT/cmdline-tools && mv NOTICE.txt source.properties bin lib tools/ \
+             && cd $ANDROID_SDK_ROOT/cmdline-tools/tools && ls \
+             && rm /root/cmdline-tools.zip
+#==============================
+# Prepare Path for Andriod SDK
+#==============================
+ENV PATH "$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS}"
+
+#===============================
+# Install Intellij Communication
+#===============================
+# From https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz
+# Install into /opt
+RUN wget --progress=dot:giga https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz -O /root/ideaIC-aarch64.tar.gz \
+  && tar -xzf /root/ideaIC-*.tar.gz -C /opt \
+  && rm /root/ideaIC-*.tar.gz

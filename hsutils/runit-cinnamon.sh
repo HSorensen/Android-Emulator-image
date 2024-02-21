@@ -40,7 +40,7 @@ usage()
 {
    cat << HEREDOC
 
-   Usage: $progname [--status] [--build] [--run]
+   Usage: $progname [--status] [--build] [--run] [--verbose]
 
    optional arguments:
      -h, --help           show this help message and exit
@@ -60,6 +60,8 @@ parse_args() {
 OPTS=$(getopt -o "hsbrv" --long "help,status,build,run,verbose" -n "$progname" -- "$@")
 if [ $? != 0 ] ; then echo "Error in command line arguments." >&2 ; usage; return; fi
 
+if [ "$OPTS" == " --" ]; then usage; return; fi
+
 eval set -- "$OPTS"
 
 while true; do
@@ -76,7 +78,7 @@ while true; do
   esac
 done
 
-if [ $ARG_VERBOSE -gt 0 ]; then
+if [ $ARG_VERBOSE -gt 1 ]; then
    # print out all the parameters we read in
    cat <<EOM
 ${G_LOG_I} ARG_BUILD=$ARG_BUILD
@@ -115,15 +117,39 @@ launch_docker_status() {
       Up ) CONTAINERSTATUS=running ;;
       Exited ) CONTAINERSTATUS=stopped ;;
       paused ) CONTAINERSTATUS=paused ;;
-      * ) CONTAINERSTATUS=notfound ;;
+      "" ) CONTAINERSTATUS=notfound ;;
+      * ) CONTAINERSTATUS=unknown ;;
     esac
     
-    [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Status ${status[0]} ${status[1]} ${status[2]} $CONTAINERSTATUS""\n"
+    [ $ARG_STATUS  -gt 0 ] && printf "${G_LOG_I} Status ${status[0]} ${status[1]} ${status[2]} $CONTAINERSTATUS""\n"
+    [ $ARG_VERBOSE -gt 0 ] && [ $ARG_STATUS  -eq 0 ] && printf "${G_LOG_I} Status ${status[0]} ${status[1]} ${status[2]} $CONTAINERSTATUS""\n"
+    [ $ARG_VERBOSE -gt 1 ] && printf "${G_LOG_I} Status first word ${w1}""\n"
 }
 
 launch_docker_build() {
-    # check if container already exists or is running
     printf "${G_LOG_I} Building image $IMAGE using $DOCKERFILE ....""\n"
+    # check if container already exists or is running
+    # get CONTAINERSTATUS
+    [ $ARG_STATUS -eq 0 ] && launch_docker_status
+
+    case "$CONTAINERSTATUS" in
+       # note: ;& is fallthrough
+       # paused: unpause, stop, remove
+       # running: stop, remove
+       # stopped: remove
+       # notfound: proceed with build
+      paused  ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Unpausing container ${CONTAINER}""\n";
+                 docker container unpause $CONTAINER;
+                 ;&
+      running ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Stopping container ${CONTAINER}""\n";
+                 docker container stop $CONTAINER;
+                 ;&
+      stopped ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Removing container ${CONTAINER}""\n";
+                 docker container rm $CONTAINER;
+                 ;;
+      notfound )  ;;
+              *) printf "${G_LOG_E} Unexpected container status $CONTAINERSTATUS. Check setup.""\n"; exit 8; ;;
+    esac
 
     docker build --format docker -f $DOCKERFILE -t $IMAGE .
     retVal=$?

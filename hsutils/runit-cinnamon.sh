@@ -38,18 +38,16 @@ ARG_VERBOSE=0
 # usage function
 usage()
 {
-   cat << HEREDOC
-
+   printf "
    Usage: $progname [--status] [--build] [--run] [--verbose]
 
    optional arguments:
      -h, --help           show this help message and exit
      -s, --status         show status of container
-     -b, --build          build container
+     -b, --build          build container. ${G}Note${NC} Container is unpaused or stopped then removed before builing
      -r, --run            run container
-     -v, --verbose        verbose output. vv for more verbose
-
-HEREDOC
+     -v, --verbose        verbose output. vv for very verbose
+     "
 }  
 
 parse_args() {
@@ -80,8 +78,7 @@ done
 
 if [ $ARG_VERBOSE -gt 1 ]; then
    # print out all the parameters we read in
-   cat <<EOM
-${G_LOG_I} ARG_BUILD=$ARG_BUILD
+   printf "${G_LOG_I} ARG_BUILD=$ARG_BUILD
 ${G_LOG_I} ARG_STATUS=$ARG_STATUS
 ${G_LOG_I} ARG_RUN=$ARG_RUN
 ${G_LOG_I} ARG_VERBOSE=$ARG_VERBOSE
@@ -89,7 +86,7 @@ ${G_LOG_I} DOCKERFILE=$DOCKERFILE
 ${G_LOG_I} CONTAINER=$CONTAINER
 ${G_LOG_I} IMAGE=$IMAGE
 ${G_LOG_I} HOSTNAME=$HOSTNAME
-EOM
+"
 fi
 
 }
@@ -147,7 +144,7 @@ launch_docker_build() {
       stopped ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Removing container ${CONTAINER}""\n";
                  docker container rm $CONTAINER;
                  ;;
-      notfound )  ;;
+      notfound ) ;;
               *) printf "${G_LOG_E} Unexpected container status $CONTAINERSTATUS. Check setup.""\n"; exit 8; ;;
     esac
 

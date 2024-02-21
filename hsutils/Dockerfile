@@ -3,10 +3,9 @@ FROM linuxmintd/mint21-amd64
 #============================
 # xdotool 
 #============================
-RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xvfb x11vnc wmctrl xterm bash
-#RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xserver-xephyr x11vnc wmctrl xterm 
-RUN apt-get install -y ruby 
-RUN apt-get install -y dbus-x11 cinnamon
+RUN apt-get update && apt-get install -y libxtst-dev libxinerama-dev xvfb x11vnc wmctrl xterm bash \
+ ruby \ 
+ dbus-x11 cinnamon curl lightdm
 
 ADD xdotool-master.zip xdotool-src/
 RUN cd xdotool-src && unzip xdotool-master && cd xdotool-master && make && make install

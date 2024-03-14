@@ -1,10 +1,10 @@
 # Based on https://www.youtube.com/watch?v=SawQHZOHQSU
 FROM ubuntu:lunar-20230615
+#RUN apt update && \
+#    DEBIAN_FRONTEND=noninteractive apt install -y cinnamon locales sudo
+RUN add-apt-repository ppa:linuxmint-daily-build-team/daily-builds
 RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt install -y cinnamon locales sudo
-
-# RUN apt update && \
-#     DEBIAN_FRONTEND=noninteractive apt install -y cinnamon-desktop-environment locales sudo
+     DEBIAN_FRONTEND=noninteractive apt install -y cinnamon-desktop-environment locales sudo
 
 #RUN apt update && \
 #    DEBIAN_FRONTEND=noninteractive apt install -y ubuntucinnamon-desktop locales sudo
@@ -18,10 +18,11 @@ RUN apt update && \
 
 ARG USER=testuser
 ARG PASS=1234
+ARG USRHOME=/home/$USER
 
 RUN useradd -m $USER -p $(openssl passwd $PASS) && \
     usermod -aG sudo $USER && \
-    chsh -s /bin/bash $USER
+    chsh -s /usr/bin/bash $USER
 
 RUN echo "#!/bin/sh\n\
 export XDG_SESSION_DESKTOP=cinnamon\n\
@@ -33,13 +34,13 @@ RUN echo "#!/bin/sh\n\
 . /env\n\
 exec dbus-run-session -- cinnamon-session" > /xstartup && chmod +x /xstartup
 
-RUN mkdir /home/$USER/.vnc && \
-    echo $PASS | vncpasswd -f > /home/$USER/.vnc/passwd && \
-    chmod 0600 /home/$USER/.vnc/passwd && \
-    chown -R $USER:$USER /home/$USER/.vnc
+RUN mkdir -p $USRHOME/.vnc && \
+    echo $PASS | vncpasswd -f > /$USRHOME/.vnc/passwd && \
+    chmod 0600 $USRHOME/.vnc/passwd && \
+    chown -R $USER:$USER $USRHOME/.vnc
 
 RUN cp -f /xstartup /etc/xrdp/startwm.sh && \
-    cp -f /xstartup /home/$USER/.vnc/xstartup
+    cp -f /xstartup $USRHOME/.vnc/xstartup
 
 RUN echo "#!/bin/sh\n\
 sudo -u $USER -g $USER -- vncserver -rfbport 5902 -geometry 1920x1080 -depth 24 -verbose -localhost no -autokill no" > /startvnc && chmod +x /startvnc
@@ -55,8 +56,8 @@ CMD service dbus start; /usr/lib/systemd/systemd-logind & service xrdp start; /s
 #============================
 RUN apt install -y libxkbcommon-x11-dev libxtst-dev libxinerama-dev build-essential ruby wget
 
-ADD xdotool-master.zip xdotool-src/
-RUN cd xdotool-src && unzip xdotool-master && cd xdotool-master && make && make install
+ADD --chown=$USER:$USER xdotool-master.zip $USRHOME/xdotool-src/
+RUN cd $USRHOME/xdotool-src && unzip xdotool-master && cd xdotool-master && make && sudo make install
 
 #=========================
 # Node Version Manager 
@@ -64,8 +65,10 @@ RUN cd xdotool-src && unzip xdotool-master && cd xdotool-master && make && make 
 #
 # https://www.linode.com/docs/guides/how-to-install-use-node-version-manager-nvm/
 #=========================
-RUN cd /root && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | bash 
-RUN . /root/.bashrc && nvm install node
+RUN cd $USRHOME && wget -q https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh -O nvm_install.sh 
+RUN cd $USRHOME && sudo -u  $USER NVM_DIR="$USRHOME/.nvm" bash nvm_install.sh 
+RUN cd $USRHOME && sudo -u $USER -s eval ". $USRHOME/.nvm/nvm.sh; nvm install node;"
+RUN echo "NVM_DIR=$USRHOME/.nvm" >> $USRHOME/.bashrc
 
 #=========================
 # Appium
@@ -73,8 +76,7 @@ RUN . /root/.bashrc && nvm install node
 # from https://dev.to/testwithblake/a-step-by-step-guide-to-test-automation-with-appium-2nmf
 # See https://github.com/appium/appium-uiautomator2-driver
 RUN apt-get install -y ffmpeg libfuse2 firefox  gstreamer1.0*
-RUN . /root/.bashrc && npm install -g appium -g appium-doctor -g mjpeg-consumer && \
-     appium driver install uiautomator2 
+RUN cd $USRHOME && sudo -u $USER -s eval ". $USRHOME/.nvm/nvm.sh; npm install -g appium -g appium-doctor -g mjpeg-consumer; appium driver install uiautomator2" 
 
 # Install bundle tool jar into /usr/local/bin, and mark executable
 RUN wget https://github.com/google/bundletool/releases/download/1.15.6/bundletool-all-1.15.6.jar -O bundletool.jar --progress=dot:giga \
@@ -82,21 +84,21 @@ RUN wget https://github.com/google/bundletool/releases/download/1.15.6/bundletoo
 
 # Install appium inspector
 # from https://github.com/appium/appium-inspector
-RUN wget https://github.com/appium/appium-inspector/releases/download/v2023.12.2/Appium-Inspector-linux-2023.12.2.AppImage -O /root/Appium-Inspector-linux.AppImage --progress=dot:giga \
-  && chmod a+x /root/Appium-Inspector-linux.AppImage
+RUN cd $USRHOME && wget https://github.com/appium/appium-inspector/releases/download/v2023.12.2/Appium-Inspector-linux-2023.12.2.AppImage -O $USRHOME/Appium-Inspector-linux.AppImage --progress=dot:giga \
+  && chmod a+x $USRHOME/Appium-Inspector-linux.AppImage
 
 #========================
 # SDKMAN
 # https://sdkman.io/install
 # $ export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
 #========================
-SHELL ["/bin/bash","-c"] 
-RUN curl -s "https://get.sdkman.io" | bash
+RUN cd $USRHOME && wget -q https://get.sdkman.io -O sdkman_install.sh 
+RUN cd $USRHOME && sudo -u $USER bash sdkman_install.sh 
 
 # Install dependencies
 # Install JDK
-RUN source "/root/.sdkman/bin/sdkman-init.sh" && sdk install java 17.0.10-tem
-ENV JAVA_HOME=/root/.sdkman/candidates/java/current
+RUN cd $USRHOME && sudo -u $USER -s eval ". $USRHOME/.sdkman/bin/sdkman-init.sh; sdk install java 17.0.10-jbr"
+RUN echo "JAVA_HOME=$USRHOME/.sdkman/candidates/java/current" >> $USRHOME/.bashrc
 
 #=========================
 # Android Studio
@@ -108,8 +110,8 @@ RUN wget https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2023.1.1.28/
 RUN cd /usr/local && tar xzvf /android-studio.tar.gz
 RUN rm /android-studio.tar.gz
 
-# ENV ANDROID_HOME=/usr/local/android-studio
-ENV ANDROID_HOME=/opt/Android/Sdk
+RUN echo "ANDROID_HOME=/opt/Android/Sdk" >> $USRHOME/.bashrc
+RUN echo "ANDROID_SDK_ROOT=/opt/Android/Sdk" >> $USRHOME/.bashrc
 ENV ANDROID_SDK_ROOT=/opt/Android/Sdk
 
 #=========================
@@ -124,16 +126,49 @@ RUN wget --progress=dot:giga https://dl.google.com/android/repository/${ANDROID_
              && cd $ANDROID_SDK_ROOT/cmdline-tools && mv NOTICE.txt source.properties bin lib tools/ \
              && cd $ANDROID_SDK_ROOT/cmdline-tools/tools && ls \
              && rm /root/cmdline-tools.zip
+
 #==============================
-# Prepare Path for Andriod SDK
+# Prepare Path for Android SDK
 #==============================
-ENV PATH "$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS}"
+##@RUN echo PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS}" >> $USRHOME/.bashrc
 
 #===============================
 # Install Intellij Communication
 #===============================
 # From https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz
 # Install into /opt
-RUN wget --progress=dot:giga https://download.jetbrains.com/idea/ideaIC-2023.3.3-aarch64.tar.gz -O /root/ideaIC-aarch64.tar.gz \
-  && tar -xzf /root/ideaIC-*.tar.gz -C /opt \
+RUN wget --progress=dot:giga https://download.jetbrains.com/idea/ideaIC-2023.3.4-aarch64.tar.gz -O /root/ideaIC-aarch64.tar.gz \
+  && mkdir -p /opt/idea \
+  && tar --strip-components 1 -xzvf /root/ideaIC-*.tar.gz -C /opt/idea \
   && rm /root/ideaIC-*.tar.gz
+
+#===============================
+# Create Desktop Launchers
+# - Android Studio
+# - Idea IDE
+# - Appium Inspector
+#
+# Mark launchers as executables
+#===============================
+
+RUN cd $USRHOME && sudo -u $USER -s eval " mkdir -p Desktop; \
+  echo '[Desktop Entry]'                               >Desktop/androidstudio.desktop; \
+  echo 'Name=Android Studio'                           >>Desktop/androidstudio.desktop; \
+  echo 'Exec=bash -i /usr/local/android-studio/bin/studio.sh'  >>Desktop/androidstudio.desktop; \
+  echo 'Comment=Android Studio'                        >>Desktop/androidstudio.desktop; \
+  echo 'Terminal=true'                                 >>Desktop/androidstudio.desktop; \
+  echo 'Icon=/usr/local/android-studio/bin/studio.svg' >>Desktop/androidstudio.desktop; \
+  echo 'Type=Application'                              >>Desktop/androidstudio.desktop; \
+  echo 'Categories=Development;'                      >>Desktop/androidstudio.desktop; \
+  echo '[Desktop Entry]'                              >Desktop/idea.desktop; \
+  echo 'Name=Idea'                                    >>Desktop/idea.desktop; \
+  echo 'Exec=bash -i /opt/idea/bin/idea.sh'           >>Desktop/idea.desktop; \
+  echo 'Comment=Idea IDE'                             >>Desktop/idea.desktop; \
+  echo 'Terminal=true'                                >>Desktop/idea.desktop; \
+  echo 'Icon=/opt/idea/bin/idea.svg'                  >>Desktop/idea.desktop; \
+  echo 'Type=Application'                             >>Desktop/idea.desktop; \
+  echo 'Categories=Development;'                      >>Desktop/idea.desktop; \
+  chmod a+x Desktop/androidstudio.desktop ; \
+  chmod a+x Desktop/idea.desktop ; \
+  "
+

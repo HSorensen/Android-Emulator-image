@@ -47,7 +47,7 @@ usage()
      -b, --build          build container. ${G}Note${NC} Container is unpaused or stopped then removed before builing
      -r, --run            run container
      -v, --verbose        verbose output. vv for very verbose
-     "
+     ""\n"
 }  
 
 parse_args() {
@@ -86,7 +86,7 @@ ${G_LOG_I} DOCKERFILE=$DOCKERFILE
 ${G_LOG_I} CONTAINER=$CONTAINER
 ${G_LOG_I} IMAGE=$IMAGE
 ${G_LOG_I} HOSTNAME=$HOSTNAME
-"
+""\n"
 fi
 
 }
@@ -161,12 +161,47 @@ launch_docker_build() {
 launch_docker_run() {
     # check if container already is running
     printf "${G_LOG_I} Starting image $IMAGE name $CONTAINER hostname $HOSTNAME ....""\n"
-    docker run -it --detach --publish 5902:5902 --publish 3389:3389 --name $CONTAINER --hostname $HOSTNAME $IMAGE
-    retVal=$?
-    if [ $retVal -ne 0 ]; then
-        printf "${G_LOG_E} Running image: $retVal""\n"
-        return $retVal
-    fi
+
+    # check if container already exists or is running
+    # get CONTAINERSTATUS
+    [ $ARG_STATUS -eq 0 ] && launch_docker_status
+
+    case "$CONTAINERSTATUS" in
+       # paused: unpause
+       # running: return
+       # stopped: start
+       # notfound: proceed with build, then run
+      paused  ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Unpausing container ${CONTAINER}""\n";
+                 docker container unpause $CONTAINER;
+                 retVal=$?
+                 if [ $retVal -ne 0 ]; then
+                     printf "${G_LOG_E} Unpausing container: $retVal""\n"
+                     return $retVal
+                 fi
+                 ;;
+      running ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Container already running ${CONTAINER}""\n";
+                 # Nothing
+                 ;;
+      stopped ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Starting container ${CONTAINER}""\n";
+                 docker container start $CONTAINER;
+                 retVal=$?
+                 if [ $retVal -ne 0 ]; then
+                     printf "${G_LOG_E} Starting container: $retVal""\n"
+                     return $retVal
+                 fi
+                 ;;
+      notfound ) [ $ARG_VERBOSE -gt 0 ] && printf "${G_LOG_I} Container not found, rebuilding ${CONTAINER}""\n";
+                 launch_docker_build ;
+                 docker run -it --detach --publish 5902:5902 --publish 3389:3389 --name $CONTAINER --hostname $HOSTNAME $IMAGE
+                 retVal=$?
+                 if [ $retVal -ne 0 ]; then
+                     printf "${G_LOG_E} Running image: $retVal""\n"
+                     return $retVal
+                 fi
+                 ;;
+              *) printf "${G_LOG_E} Unexpected container status $CONTAINERSTATUS. Check setup.""\n"; exit 8; ;;
+    esac
+
 
     # get container id
     CONTAINERID=`docker container ls --all | grep $CONTAINER | cut -d" " -f1`
@@ -179,7 +214,7 @@ launch_docker_run() {
 launch_docker_prompt() {
     printf "${G_LOG_I} Started prompt inside container $CONTAINERID. Note exit from this prompt will stop the container.""\n"
 
-    docker exec -it $CONTAINERID bash
+    docker exec --user testuser -w /home/testuser -it $CONTAINERID bash
 
     printf "${G_LOG_I} Stopping container $CONTAINERID ... ""\n"
 
